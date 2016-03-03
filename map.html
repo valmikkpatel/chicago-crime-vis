@@ -1,0 +1,251 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v3.min.js"></script>
+    <style>
+      .legend {                                                  
+        font-size: 12px;                               
+      }                                                  
+      rect {                                   
+        stroke-width: 2;                      
+      } 
+
+      h2 {
+        text-align: center;
+        color: black;
+        font-family: sans-serif;
+        font-size: 15px;
+      }
+
+      div.years_buttons {
+        position: fixed;
+        top: 65px;
+        left: 50px;
+      }
+
+      div.years_buttons div {
+        background-color: #ffe6e6;
+        padding: 3px;
+        margin: 7px;
+        font-family: sans-serif;
+        font-size: 13px;
+      }
+
+      div.tooltip {
+        color: #222;
+        background-color: #fff;
+        padding: .5em;
+        text-shadow: #f5f5f5 0 1px 0;
+        border-radius: 2px;
+        opacity: 0.9;
+        position: absolute;
+        font-family: sans-serif;
+        font-size: 12px;
+      }
+
+    </style>
+
+    <script type="text/javascript">  
+
+      var legendRectSize = 18;
+      var legendSpacing = 4;
+
+      
+
+
+      var data = [];
+      d3.tsv("crime_data_wards.tsv", function(dat) {
+        
+        data = dat.map(function(d) {
+            return {"year": d.year, "count": d.id, "ward": d.ward} ;
+        })
+      });
+
+      d3.json("wards_chicago.json", draw);
+
+      function draw(geo_data) {
+
+        d3.select("h2")
+
+
+        "use strict";
+        var margin = 100,
+            width = 1200 - margin,
+            height = 600 - margin;
+
+        var tooltip = d3.select('body').append('div')
+            .attr('class', 'hidden tooltip');
+
+
+
+        var svg = d3.select("body")
+            .append("svg")
+            .attr("width", width + margin)
+            .attr("height", height + margin)
+            .append('g')
+            .attr('class', 'map');
+        
+  
+        var years = [];
+
+          for(var i = 2003; i <= 2015; i += 1) {
+              years.push(i);
+          }
+
+        var colours = ["#ffe6e6", "#ffb3b3", "#ff8080", "#ff4d4d", "#ff1a1a", "#e60000", "#b30000", "#b30000", "#800000", "#4d0000"];
+        var heatmapColour = d3.scale.linear()
+                              .domain(d3.range(0, 21597, 21597.0 / (colours.length - 1)))
+                              .range(colours);
+
+        var projection = d3.geo.albers()
+                           .center([0, 41.83])
+                           .rotate([87.65, 0])
+                           .parallels([40, 45])
+                           .scale(70000)
+                           .translate([width / 2, height / 2])
+
+        var path = d3.geo.path().projection(projection);
+
+
+        var map = svg.selectAll('path')
+                     .data(geo_data.features)
+                     .enter()
+                     .append('path')
+                     .attr('d', path)
+                     .style('fill', function (d) {
+                        var ward = d.properties["WARD"];
+                        for(var i = 0; i < data.length; i++) {
+                          if(data[i].year === '2004' & data[i].ward == ward) {
+                          return heatmapColour(data[i].count);
+                        }
+
+                      }
+                      return "White";
+                     })
+                     .style('stroke', 'black')
+                     .style('stroke-width', 0.5);
+
+        svg.append('text')
+           .attr('x',763)
+           .attr('y',28)
+           .style('font-family','sans-serif')
+           .style('font-size', '13px')
+           .html("Count of Reported Crimes")
+
+
+        var legend = svg.selectAll('.legend')                   
+          .data(colours)                                 
+          .enter()                                              
+          .append('g')                                          
+          .attr('class', 'legend')                              
+          .attr('transform', function(d, i) {                   
+            var height = legendRectSize + legendSpacing;        
+            var offset =  height * colours.length / 2;   
+            var horz = -2 * legendRectSize + 800;                       
+            var vert = i * height - offset + 150;                       //
+            return 'translate(' + horz + ',' + vert + ')';      
+          })
+          .attr('title',"Crime Count"); 
+
+        legend.append('rect')                                   
+          .attr('width', legendRectSize)                        
+          .attr('height', legendRectSize)                       
+          .style('fill', function(d,i) {return colours[i];})        
+          .style('stroke', function(d,i){return colours[i];});     
+          
+        legend.append('text')                                     
+          .attr('x', legendRectSize + legendSpacing)              
+          .attr('y', legendRectSize - legendSpacing)              
+          .text(function(d,i) { return (2700*i) + " - " + (2700*(i+1));})
+          .style("font-family","sans-serif");
+   
+      function update(year) {
+
+          d3.select('h2')
+            .text(year);
+
+          map.selectAll('path').remove();
+
+          map.transition()
+             .duration(500)
+             .style('fill', function (d) {
+                var ward = d.properties["WARD"];
+                for(var i = 0; i < data.length; i++) {
+                  if(data[i].year == year & data[i].ward == ward) {
+                    return heatmapColour(data[i].count);
+                  }
+                }
+                  return "White";
+              })
+
+          map.on('mousemove', function(d) {
+            
+            var mouse = d3.mouse(svg.node()).map(function(d){
+              return parseInt(d);
+            });
+            
+            var crime_count = 0;
+                        
+            for(var i = 0; i < data.length; i++) {
+              
+              if(data[i].year == year & data[i].ward == d.properties.WARD) {
+                
+                crime_count = data[i].count;
+              }}
+            tooltip.classed('hidden', false)
+                   .attr('style', 'left:' + (mouse[0] + 15) +'px; top:' + (mouse[1] - 35) + 'px')
+                   .html("Ward " + d.properties.WARD + "<br>Year: " + year + "<br>Crime Count: " + crime_count)
+            }).on('mouseout', function(d) {
+                          tooltip.classed('hidden', true)
+                                 .style("opacity",0);
+                      });
+        ;
+            
+          }
+
+          var year_idx = 1;
+
+          var year_interval = setInterval(function() {
+            update(years[year_idx]);
+
+            year_idx++;
+
+            if(year_idx >= years.length) {
+                clearInterval(year_interval);
+
+                var buttons = d3.select("body")
+                        .append("div")
+                        .attr("class", "years_buttons")
+                        .selectAll("div")
+                        .data(years)
+                        .enter()
+                        .append("div")
+                        .text(function(d) {
+                            return d;});
+
+                buttons.on("click", function(d) {
+                    d3.select(".years_buttons")
+                      .selectAll("div")
+                      .transition()
+                      .duration(500)
+                      .style("color", "black")
+                      .style("background", "#ffe6e6");
+
+                    d3.select(this)
+                      .transition()
+                      .duration(500)
+                      .style("background", "#ff4d4d")
+                      .style("color", "white");
+                    update(d);
+                });
+            }
+          }, 1000);
+    }
+    </script>
+  </head>
+  <body>
+    <h2>2003</h2>
+  </body>
+</html>

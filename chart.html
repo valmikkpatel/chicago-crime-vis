@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+
+<html>
+<head>
+<div id="chartContainer">
+</div>
+
+<style type="text/css">
+	circle.dimple-series-1 {
+        r: 3;
+      }
+
+    #slider {
+    	margin-left: 75px;
+    	margin-top: 0px !important;
+    	background: 'rgb(0,255,0)';
+	}
+    .ui-slider-horizontal {
+    	height: 5px !important;
+    	width: 750px !important;
+    	margin-top: 0px !important;
+	}
+	.ui-slider .ui-slider-handle {
+    	height: 10px !important;
+    	width: 10px !important;
+    	padding-left: 5px !important;
+    	margin-top: 0px !important;
+
+	}
+	.ui-slider-horizontal .ui-slider-handle { 
+		top: -4px !important; 
+	}
+	p{
+		margin-left: 70px;
+		font-family: sans-serif;
+    	font-size: 10px;
+    	shape-rendering: crispEdges;
+	}
+
+</style>
+<script src="//code.jquery.com/jquery-1.10.2.js"></script>
+<script src="//code.jquery.com/ui/1.11.4/jquery-ui.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<script src="dimple.v2.0.0.js"></script>
+<link rel="stylesheet" href="//code.jquery.com/ui/1.11.4/themes/smoothness/jquery-ui.css">
+
+<script type="text/javascript">
+
+
+	
+	var parseDate = d3.time.format("%Y-%m-%d").parse;
+
+	var data = d3.tsv("crime_data.tsv",plot);
+
+	
+	function plot(data) {
+
+
+    	var svg = dimple.newSvg("#chartContainer", 960, 450);
+
+    	var myChart = new dimple.chart(svg, data);
+
+    	myChart.setBounds(75, 30, 750, 400)
+        
+    	var dateAxis = myChart.addTimeAxis("x", "Year");
+
+    	dateAxis.addOrderRule("Year");
+    	dateAxis.dateParseFormat = "%Y";
+    	dateAxis.tickFormat = "%Y";
+
+    	var countAxis = myChart.addMeasureAxis("y", "Count");
+    
+    	var lines = myChart.addSeries("Crime Type", dimple.plot.line, [dateAxis, countAxis]);
+    	var scat = myChart.addSeries("Crime Type", dimple.plot.scatter,[dateAxis,countAxis]);
+    
+    	countAxis.title = 'Reported Crimes';
+    	dateAxis.title = "Year";
+    	var myLegend = myChart.addLegend(900, 35, 60, 300, "Right");
+    	myChart.draw();
+    	myChart.legends = [];
+
+
+    	svg.selectAll("title_text")
+           .data(["Click legend to","filter by crime type:"])
+           .enter()
+           .append("text")
+           .attr("x", 840)
+           .attr("y", function (d, i) { return 20 + i * 14; })
+           .style("font-family", "sans-serif")
+           .style("font-size", "10px")
+           .style("color", "Black")
+           .text(function (d) { return d; });
+
+        var filterValues = dimple.getUniqueValues(data, "Crime Type");
+        var filter = dimple.getUniqueValues(data,"Year");
+        var filterValues_year = [];
+
+        myLegend.shapes.selectAll("rect")
+          		.on("click", function (e) {
+        
+        	var hide = false;
+        	var newFilters = [];
+
+        	filterValues.forEach(function (f) {
+         		if (f === e.aggField.slice(-1)[0]) {
+                	hide = true;
+            	} else {
+                	newFilters.push(f);
+            	}
+        	});
+            
+        	if (hide) {
+            	d3.select(this).style("opacity", 0.2);
+        	} else {
+            	newFilters.push(e.aggField.slice(-1)[0]);
+            	d3.select(this).style("opacity", 0.8);
+        	}
+
+        	filterValues = newFilters;
+
+            
+        	data_temp = dimple.filterData(data, "Crime Type", filterValues);
+        	myChart.data = dimple.filterData(data_temp,"Year",filterValues_year);
+        	myChart.draw(800);
+    	});
+
+    	$(function() {
+
+    		$( "#slider" ).slider({
+      			range: true,
+      			min: 2001,
+      			max: 2015,
+      			values: [ 2001, 2015 ],
+      			orientation: "horizontal",
+      			change: function( event, ui ) {
+      				var filter = [];
+      				for (x = ui.values[0];x <= ui.values[1];x++) {
+      					filter.push(String(x));
+      				}
+      				filterValues_year = filter;
+      				data_temp = dimple.filterData(data,"Year", filterValues_year);
+      				myChart.data = dimple.filterData(data_temp, "Crime Type", filterValues)
+      				myChart.draw(800);
+				},
+      			slide: function( event, ui ) {
+        			$( "#year" ).val(  + ui.values[ 0 ] + " - " + ui.values[ 1 ] );
+      			}
+    		});
+
+    		$( "#year" ).val( + $( "#slider" ).slider( "values", 0 ) + " - " + $( "#slider" ).slider( "values", 1 ) );
+    	});
+	}
+
+</script>
+</head>
+<body>
+<p>
+  <label for="year" font-family="sans-serif">Slide here to filter by years. Current Selection: </label>
+  <input type="text" id="year" readonly style="border:0; font-size: 10px; font-weight: bold; font-family: "sans-serif";">
+</p>
+<div id="slider"></div>
+</body>
+</html>
+
+
+
